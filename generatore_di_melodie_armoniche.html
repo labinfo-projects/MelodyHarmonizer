@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MelodyHarmonizer - Generatore Melodico Armonico</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tone.js CDN per la sintesi audio professionale -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Scrollbar personalizzata DAW-style */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Glows & Gradients */
+    .glow-cyan {
+      box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.45);
+    }
+    .glow-purple {
+      box-shadow: 0 0 20px -3px rgba(168, 85, 247, 0.45);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col select-none antialiased overflow-x-hidden">
+
+  <!-- Header / Top Navigation -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Logo & Branding -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="music" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+              MelodyHarmonizer
+            </h1>
+            <span class="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              Harmonic AI Engine
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Composizione melodica su progressioni armoniche (c)Giorgio Ruffa 2026</p>
+        </div>
+      </div>
+
+      <!-- Quick Audio Transport & Master BPM -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center bg-slate-900/90 border border-slate-750 border-slate-700/60 rounded-xl px-3 py-1.5 shadow-inner">
+          <span class="text-xs text-slate-400 font-mono mr-2">BPM</span>
+          <input id="bpmSlider" type="range" min="60" max="170" value="115" class="w-20 md:w-28 accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg">
+          <span id="bpmDisplay" class="text-xs font-mono font-bold text-cyan-400 w-8 text-right ml-2">115</span>
+        </div>
+
+        <button id="btnPlay" class="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-medium shadow-lg shadow-cyan-500/25 transition-all active:scale-95">
+          <i data-lucide="play" id="playIcon" class="w-4 h-4 fill-current"></i>
+          <span id="playText" class="text-sm">Riproduci</span>
+        </button>
+
+        <button id="btnStop" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition active:scale-95" title="Ferma e riavvolgi">
+          <i data-lucide="square" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 flex-1 flex flex-col gap-6">
+
+    <!-- Top Configuration Row: Armonia & Tonalità -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Card: Scelta Tonalità e Modo -->
+      <div class="lg:col-span-4 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="disc" class="w-3.5 h-3.5 text-cyan-400"></i>
+              Tonalità & Modo
+            </span>
+            <span id="scaleFormulaBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+              Maggiore
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Fondamentale</label>
+              <select id="keySelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-cyan-400 transition">
+                <option value="C">Do (C)</option>
+                <option value="C#">Do# / Re♭ (C#)</option>
+                <option value="D">Re (D)</option>
+                <option value="Eb">Mi♭ (Eb)</option>
+                <option value="E">Mi (E)</option>
+                <option value="F">Fa (F)</option>
+                <option value="F#">Fa# / Sol♭ (F#)</option>
+                <option value="G">Sol (G)</option>
+                <option value="Ab">La♭ (Ab)</option>
+                <option value="A">La (A)</option>
+                <option value="Bb">Si♭ (Bb)</option>
+                <option value="B">Si (B)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1.5">Modo Principale</label>
+              <select id="modeSelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-cyan-400 transition">
+                <option value="major">Scala Maggiore</option>
+                <option value="minor">Minore Naturale</option>
+                <option value="harmonicMinor">Minore Armonica</option>
+                <option value="dorian">Modo Dorico (Jazz/Funk)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span>Note della scala:</span>
+          <span id="scaleNotesDisplay" class="font-mono text-cyan-300 font-semibold tracking-wide">C D E F G A B</span>
+        </div>
+      </div>
+
+      <!-- Card: Progressione Armonica Predefinita -->
+      <div class="lg:col-span-8 bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-400"></i>
+              Progressioni Armoniche Celebri
+            </span>
+            <span class="text-xs text-indigo-300/80 italic" id="progressionDescription">
+              La progressione pop per eccellenza dei grandi successi mondiali
+            </span>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex-1">
+              <select id="progressionSelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-indigo-400 transition">
+                <!-- Verrà popolato dinamicamente via JS in base alla tonalità/modo scelto -->
+              </select>
+            </div>
+
+            <button id="btnGenerate" class="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-semibold shadow-lg shadow-purple-500/20 active:scale-95 transition">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>Genera Melodia</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chords Visual Bar -->
+        <div class="mt-4 pt-4 border-t border-slate-800/80">
+          <div id="chordTimelineCards" class="grid grid-cols-4 gap-2.5">
+            <!-- Popolato via JS con le card degli accordi correnti -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Piano Roll & Interactive Canvas -->
+    <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative flex flex-col">
+      
+      <!-- Canvas Toolbar -->
+      <div class="px-5 py-3 border-b border-slate-800/90 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-4">
+          <span class="font-bold text-slate-300 flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+            Piano Roll & Battute (4 Misure / 16 Quarti)
+          </span>
+          <div class="hidden sm:flex items-center gap-3 text-[11px] text-slate-400">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400"></span> Tonica / Fondamentale
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-sm bg-indigo-400"></span> Nota dell'Accordo (3ª, 5ª, 7ª)
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-sm bg-purple-400"></span> Nota di Passaggio (Scala)
+            </span>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2">
+          <button id="btnMutateMelody" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition text-[11px] font-medium" title="Varia leggermente l'intonazione mantenendo il ritmo">
+            <i data-lucide="shuffle" class="w-3.5 h-3.5"></i> Varia Note
+          </button>
+          <button id="btnMutateRhythm" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition text-[11px] font-medium" title="Cambia la figurazione ritmica">
+            <i data-lucide="git-commit" class="w-3.5 h-3.5"></i> Nuovo Ritmo
+          </button>
+          <button id="btnExportMIDI" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 transition text-[11px] font-semibold">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Scarica .MID
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Container with interactive cursor -->
+      <div class="relative w-full h-80 sm:h-96 bg-slate-950 overflow-hidden">
+        <canvas id="pianoRollCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+        <div id="playbackCursor" class="absolute top-0 bottom-0 w-[2px] bg-rose-500 shadow-md shadow-rose-500/50 pointer-events-none transition-all hidden"></div>
+      </div>
+
+      <!-- Footer Bar of Piano Roll -->
+      <div class="px-5 py-2.5 bg-slate-900/60 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div class="flex items-center gap-3">
+          <span id="currentStatusText" class="font-mono text-cyan-400">Pronto per la riproduzione</span>
+        </div>
+        <div class="flex items-center gap-4 text-[11px]">
+          <span>Note generate: <strong id="notesCountDisplay" class="text-white font-mono">16</strong></span>
+          <span>Armonizzazione: <strong id="harmonyAdherenceDisplay" class="text-emerald-400 font-mono">92% Tonica/Accordo</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Melodic Algorithm & Sound Designer Controls -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      
+      <!-- Card: Regole di Generazione Melodica -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+        <div class="flex items-center gap-2 mb-4">
+          <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Comportamento Melodico</h3>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span class="text-slate-400">Aderenza alle note dell'accordo:</span>
+              <span id="chordAdherenceValue" class="font-mono text-cyan-400 font-semibold">85%</span>
+            </div>
+            <input id="chordAdherenceSlider" type="range" min="40" max="100" value="85" class="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg">
+            <span class="text-[10px] text-slate-500 block mt-1">Percentuale di note che cadono su tonica, 3ª, 5ª o 7ª dell'accordo corrente.</span>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span class="text-slate-400">Densità Ritmica:</span>
+              <span id="rhythmDensityValue" class="font-mono text-cyan-400 font-semibold">Media</span>
+            </div>
+            <select id="rhythmDensitySelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400">
+              <option value="sparse">Spaziosa (Interi, Metà, Quarti)</option>
+              <option value="balanced" selected>Bilanciata (Quarti, Ottavi)</option>
+              <option value="busy">Fitta & Sincopata (Ottavi, Sedicesimi)</option>
+              <option value="arpeggiator">Arpeggio Fluido continuo</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span class="text-slate-400">Profilo / Contorno Melodico:</span>
+            </div>
+            <select id="contourSelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400">
+              <option value="arch" selected>Ad Arco (Sale al culmine e si adagia)</option>
+              <option value="wave">A Onde continue (Sinusoidale)</option>
+              <option value="stepwise">Movimento Grado a Grado (Lirico)</option>
+              <option value="leaps">Salto & Risoluzione a Ritroso</option>
+              <option value="ascending">Crescendo Ascendente</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Registri & Espressività -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+        <div class="flex items-center gap-2 mb-4">
+          <i data-lucide="compass" class="w-4 h-4 text-indigo-400"></i>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Estensione & Dinamica</h3>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1.5">Ottava del Lead Melodico</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button data-octave="3" class="octave-btn py-1.5 rounded-lg border border-slate-700/60 bg-slate-800 text-slate-300 text-xs font-mono font-semibold transition">Bassa (C3)</button>
+              <button data-octave="4" class="octave-btn py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-500/20 text-cyan-300 text-xs font-mono font-semibold transition">Media (C4)</button>
+              <button data-octave="5" class="octave-btn py-1.5 rounded-lg border border-slate-700/60 bg-slate-800 text-slate-300 text-xs font-mono font-semibold transition">Alta (C5)</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1.5">
+              <span class="text-slate-400">Umanizzazione (Swing & Dinamica):</span>
+              <span id="humanizeValue" class="font-mono text-indigo-400 font-semibold">Moderata</span>
+            </div>
+            <input id="humanizeSlider" type="range" min="0" max="60" value="25" class="w-full accent-indigo-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg">
+            <span class="text-[10px] text-slate-500 block mt-1">Variazione organica di velocity e micro-ritmi.</span>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1.5">Pattern Ripetizione Frasi (Forma)</label>
+            <select id="phraseFormSelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-indigo-400">
+              <option value="AABA" selected>A - A' - B - A (Coerenza & Variazione)</option>
+              <option value="AABB">A - A - B - B (Domanda / Risposta)</option>
+              <option value="ABCD">A - B - C - D (Corsa libera continua)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Strumenti & Sintesi Sonora -->
+      <div class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-sm">
+        <div class="flex items-center gap-2 mb-4">
+          <i data-lucide="volume-2" class="w-4 h-4 text-purple-400"></i>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider">Sintetizzatore & Mix</h3>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1.5">Timbro della Melodia</label>
+            <select id="leadTimbreSelect" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-purple-400">
+              <option value="bell">Soft Bell / Carillon Brillante</option>
+              <option value="electricPiano" selected>Electric Piano Warm & FM</option>
+              <option value="leadSynth">Synth Lead Analogico (Saw + Filter)</option>
+              <option value="pluck">Pluck Marimba Elettronica</option>
+              <option value="flute">Flauto Sintetico Dolce</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="text-slate-400">Volume Melodia:</span>
+              <span id="leadVolumeText" class="font-mono text-purple-400">0 dB</span>
+            </div>
+            <input id="leadVolSlider" type="range" min="-30" max="6" value="0" class="w-full accent-purple-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg">
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="chordMuteToggle" class="accent-indigo-500 rounded cursor-pointer">
+                <label for="chordMuteToggle" class="text-slate-400 cursor-pointer">Accompagnamento Accordi</label>
+              </div>
+              <span id="chordVolumeText" class="font-mono text-indigo-400">-6 dB</span>
+            </div>
+            <input id="chordVolSlider" type="range" min="-30" max="0" value="-6" class="w-full accent-indigo-400 cursor-pointer h-1.5 bg-slate-800 rounded-lg">
+          </div>
+
+          <div class="pt-1 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Riverbero d'ambiente: <strong class="text-slate-300">Space 3.5s</strong></span>
+            <span>Stereo Delay: <strong class="text-slate-300">1/8d ping-pong</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Educational Footer: Teoria & Analisi della Progressione Attuale -->
+    <div class="bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-slate-800/80 rounded-2xl p-5">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-400">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            Approfondimento Teorico-Musicale
+          </div>
+          <p id="theoryInsightText" class="text-sm text-slate-300 max-w-4xl leading-relaxed">
+            La progressione selezionata utilizza intervalli di moto fondamentale che guidano l'orecchio attraverso tensione e risoluzione. La melodia generata privilegia le note bersaglio (chord tones) nei tempi forti della misura (1 e 3), usando le note di passaggio della scala per connetterle liricamente.
+          </p>
+        </div>
+        <div class="flex-shrink-0">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-xs text-slate-300 font-mono">
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Algoritmo deterministico & probabilistico
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Audio Context Activation Modal / Toast -->
+  <div id="audioStartPrompt" class="fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-cyan-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-xl z-50 flex items-start gap-3 transition-opacity duration-300">
+    <div class="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 flex-shrink-0">
+      <i data-lucide="volume-x" class="w-5 h-5"></i>
+    </div>
+    <div class="text-xs space-y-1">
+      <div class="font-bold text-white">Audio in attesa di sblocco</div>
+      <p class="text-slate-400">I browser richiedono un tocco o clic per avviare il motore audio Web Audio / Tone.js.</p>
+      <button id="btnInitAudio" class="mt-2 px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs transition">
+        Attiva Audio Ora
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed top-20 right-6 pointer-events-none transition-all duration-300 opacity-0 transform translate-y-2 z-50 bg-slate-800/95 border border-cyan-500/50 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs flex items-center gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-cyan-400"></i>
+    <span id="toastMsg">Operazione completata</span>
+  </div>
+
+  <!-- SCRIPT LOGICO & MOTORE MUSICALE COMPLETO -->
+  <script>
+    // Inizializzazione icone
+    lucide.createIcons();
+
+    /* ==========================================================================
+       1. DATABASE DI TEORIA MUSICALE & PROGRESSIONI PIÙ USATE
+       ========================================================================== */
+    const NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+    const NOTE_NAMES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+
+    // Intervalli in semitoni per le scale
+    const SCALE_INTERVALS = {
+      major: [0, 2, 4, 5, 7, 9, 11],                 // Scala Maggiore (Ionica)
+      minor: [0, 2, 3, 5, 7, 8, 10],                 // Minore Naturale (Eolia)
+      harmonicMinor: [0, 2, 3, 5, 7, 8, 11],         // Minore Armonica
+      dorian: [0, 2, 3, 5, 7, 9, 10]                 // Modo Dorico
+    };
+
+    // Progressioni Armoniche Famose (Maggiore e Minore)
+    // gradi espressi in numeri romani e tipo di accordo
+    const PROGRESSION_DATABASE = {
+      major: [
+        {
+          id: "pop_axis",
+          name: "Pop Axis (I - V - vi - IV)",
+          category: "Maggiore",
+          degrees: [0, 4, 5, 3], // 0-indexed scale degree
+          types: ["maj", "maj", "min", "maj"],
+          numerals: ["I", "V", "vi", "IV"],
+          description: "La progressione più celebre della musica contemporanea (Beatles, U2, Lady Gaga, Coldplay).",
+          insight: "Alterna brillantezza (I, V), malinconia (vi) e respiro sospeso prima della risoluzione (IV)."
+        },
+        {
+          id: "jazz_ii_v_i",
+          name: "Jazz Cadence (ii - V - I - vi)",
+          category: "Maggiore",
+          degrees: [1, 4, 0, 5],
+          types: ["min7", "dom7", "maj7", "min7"],
+          numerals: ["ii7", "V7", "Imaj7", "vi7"],
+          description: "Il pilastro armonico del jazz e della musica d'autore (Standard jazz, Bossa nova).",
+          insight: "La fondamentale si muove per quarte ascendenti / quinte discendenti, il moto di risoluzione più forte dell'armonia tonale."
+        },
+        {
+          id: "classic_rock_145",
+          name: "Rock & Blues Spirit (I - IV - V - IV)",
+          category: "Maggiore",
+          degrees: [0, 3, 4, 3],
+          types: ["maj", "maj", "maj", "maj"],
+          numerals: ["I", "IV", "V", "IV"],
+          description: "Energica e diretta, base del Rock'n'Roll e Garage Rock (Rolling Stones, The Troggs).",
+          insight: "Tutti accordi maggiori primari, infonde un senso immediato di energia, giovinezza e slancio ritmico."
+        },
+        {
+          id: "fifties_doowop",
+          name: "50s Progression / Doo-Wop (I - vi - IV - V)",
+          category: "Maggiore",
+          degrees: [0, 5, 3, 4],
+          types: ["maj", "min", "maj", "maj"],
+          numerals: ["I", "vi", "IV", "V"],
+          description: "Dolce e nostalgica, iconica degli anni '50 e ballad eterne (Stand by Me, Earth Angel).",
+          insight: "Il movimento verso il sesto grado minore ammorbidisce la tonica, prima di preparare la cadenza perfetta su V."
+        },
+        {
+          id: "emotional_pop_vi_4_1_5",
+          name: "Sensibile / Introspettiva (vi - IV - I - V)",
+          category: "Maggiore",
+          degrees: [5, 3, 0, 4],
+          types: ["min", "maj", "maj", "maj"],
+          numerals: ["vi", "IV", "I", "V"],
+          description: "Inizia sulla relativa minore donando drammaticità ed epicità (Adele, Hans Zimmer, Eminem).",
+          insight: "Iniziando sul sesto grado minore crea un'illusione di minore che poi si rischiara maestosamente con IV e I."
+        },
+        {
+          id: "royal_road",
+          name: "Royal Road / Oudo (IV - V - iii - vi)",
+          category: "Maggiore",
+          degrees: [3, 4, 2, 5],
+          types: ["maj7", "dom7", "min7", "min"],
+          numerals: ["IVmaj7", "V7", "iii7", "vi"],
+          description: "Progressione 'Regale' popolarissima nel J-Pop, City Pop e colonne sonore Anime.",
+          insight: "Il passaggio su iii crea una sottile sospensione armonica che si risolve con struggente calore sul vi."
+        },
+        {
+          id: "canon_pachelbel",
+          name: "Canone Barocco (I - V - vi - iii)",
+          category: "Maggiore",
+          degrees: [0, 4, 5, 2],
+          types: ["maj", "maj", "min", "min"],
+          numerals: ["I", "V", "vi", "iii"],
+          description: "Le prime 4 battute del celeberrimo Canone di Pachelbel in Re Maggiore.",
+          insight: "Un moto discendente di basso che dona eleganza classica senza tempo a qualsiasi melodia."
+        }
+      ],
+      minor: [
+        {
+          id: "dark_pop_i_6_3_7",
+          name: "Pop Minore / Dark Pop (i - VI - III - VII)",
+          category: "Minore",
+          degrees: [0, 5, 2, 6],
+          types: ["min", "maj", "maj", "maj"],
+          numerals: ["i", "VI", "III", "VII"],
+          description: "Epica e moderna (Radiohead, Billie Eilish, Muse, colonne sonore Fantasy).",
+          insight: "Usa i tre grandi accordi maggiori della scala minore (VI, III, VII) creando un contrasto potente con la tonica oscura."
+        },
+        {
+          id: "andalusian_flamenco",
+          name: "Cadenza Andalusa (i - VII - VI - V)",
+          category: "Minore",
+          degrees: [0, 6, 5, 4],
+          types: ["min", "maj", "maj", "maj"], // V è dominante maggiore
+          numerals: ["i", "VII", "VI", "V"],
+          description: "Tradizione spagnola, flamenco e rock drammatico (Dire Straits, Hit the Road Jack).",
+          insight: "Il basso scende di semitono e tono in moto perentorio verso l'accordo dominante maggiore di V."
+        },
+        {
+          id: "jazz_minor_ii_v_i",
+          name: "Jazz Minore (ii° - V7 - i - i)",
+          category: "Minore",
+          degrees: [1, 4, 0, 0],
+          types: ["dim", "dom7", "min", "min"],
+          numerals: ["iiø7", "V7b9", "i(min)", "i"],
+          description: "Autentica cadenza jazz/noir, ricca di tensione e mistero sensuale.",
+          insight: "L'accordo diminuito semidiminuito prepara una quinta eccedente sul V7 che precipita sulla tonica minore."
+        },
+        {
+          id: "classic_minor_1_4_5",
+          name: "Classica Drammatica (i - iv - V - i)",
+          category: "Minore",
+          degrees: [0, 3, 4, 0],
+          types: ["min", "min", "maj", "min"], // V maggiore (sensibile alzata)
+          numerals: ["i", "iv", "V", "i"],
+          description: "La progressione madre di Bach, Beethoven e delle composizioni tragico-drammatiche.",
+          insight: "La sensibile alzata dell'accordo di dominante maggiore richiama imperiosamente il ritorno a casa."
+        },
+        {
+          id: "rnb_minor_i_v_6_7",
+          name: "R&B / Neo-Soul Melancolico (i - v - VI - VII)",
+          category: "Minore",
+          degrees: [0, 4, 5, 6],
+          types: ["min7", "min7", "maj7", "dom7"],
+          numerals: ["i7", "v7", "VImaj7", "VII"],
+          description: "Groove fluido e introspettivo tipico del Contemporary R&B e Lo-Fi hip hop.",
+          insight: "Il quinto grado minore (v) evita la cadenza dura e regala un'atmosfera vaporosa, sofisticata e sognante."
+        },
+        {
+          id: "epic_minor_i_6_4_5",
+          name: "Epic Cinematic (i - VI - iv - V)",
+          category: "Minore",
+          degrees: [0, 5, 3, 4],
+          types: ["min", "maj", "min", "maj"],
+          numerals: ["i", "VI", "iv", "V"],
+          description: "Costruzione di tensione cinematografica per trailer e scene d'azione emotiva.",
+          insight: "Il quarto grado minore crea una sospensione profonda prima che il quinto maggiore esploda verso il culmine."
+        }
+      ]
+    };
+
+    // Struttura degli accordi (intervalli di semitoni rispetto alla tonica dell'accordo)
+    const CHORD_FORMULAS = {
+      maj:  [0, 4, 7],
+      min:  [0, 3, 7],
+      dim:  [0, 3, 6],
+      maj7: [0, 4, 7, 11],
+      min7: [0, 3, 7, 10],
+      dom7: [0, 4, 7, 10],
+      dim7: [0, 3, 6, 9]
+    };
+
+    /* ==========================================================================
+       2. STATO GLOBALE DELL'APPLICAZIONE
+       ========================================================================== */
+    const state = {
+      key: "C",
+      mode: "major",
+      progressionId: "pop_axis",
+      bpm: 115,
+      isPlaying: false,
+      leadOctave: 4,
+      leadTimbre: "electricPiano",
+      leadVolume: 0,
+      chordVolume: -6,
+      chordMuted: false,
+      chordAdherence: 85,
+      rhythmDensity: "balanced",
+      contour: "arch",
+      humanize: 25,
+      phraseForm: "AABA",
+
+      // Dati generati correnti
+      currentChords: [],      // Array di 4 accordi con nome, note, durata
+      currentMelody: [],      // Array di eventi nota { note, time, duration, velocity, type, pitchIdx }
+      totalMeasures: 4,
+      measureDurationBeats: 4,
+      
+      // Tone.js synths & loops
+      leadSynth: null,
+      chordSynth: null,
+      reverb: null,
+      delay: null,
+      melodyPart: null,
+      chordPart: null,
+      transportScheduleId: null
+    };
+
+    /* ==========================================================================
+       3. FUNZIONI TEORICHE & GENERATORE ARMONICO
+       ========================================================================== */
+    function getRootIndex(noteName) {
+      const idx = NOTE_NAMES.indexOf(noteName);
+      if (idx !== -1) return idx;
+      return NOTE_NAMES_FLAT.indexOf(noteName);
+    }
+
+    function getScaleNotes(key, mode) {
+      const rootIdx = getRootIndex(key);
+      const intervals = SCALE_INTERVALS[mode] || SCALE_INTERVALS.major;
+      return intervals.map(interval => {
+        const pitchIdx = (rootIdx + interval) % 12;
+        return NOTE_NAMES[pitchIdx];
+      });
+    }
+
+    function getNoteByInterval(rootName, semitones) {
+      const rootIdx = getRootIndex(rootName);
+      const pitchIdx = (rootIdx + semitones) % 12;
+      return NOTE_NAMES[pitchIdx];
+    }
+
+    function calculateChord(rootKey, mode, scaleDegree, chordType, octave = 3) {
+      const scaleNotes = getScaleNotes(rootKey, mode);
+      const chordRootName = scaleNotes[scaleDegree % scaleNotes.length];
+      const rootIdx = getRootIndex(chordRootName);
+      
+      const formula = CHORD_FORMULAS[chordType] || CHORD_FORMULAS.maj;
+      const pitches = formula.map(semi => {
+        const pIdx = (rootIdx + semi) % 12;
+        // determinazione ottava per voicings ordinati
+        let noteOctave = octave;
+        if (pIdx < rootIdx) noteOctave += 1;
+        return `${NOTE_NAMES[pIdx]}${noteOctave}`;
+      });
+
+      return {
+        root: chordRootName,
+        type: chordType,
+        fullName: `${chordRootName}${formatChordSuffix(chordType)}`,
+        pitches: pitches,
+        pitchClasses: formula.map(semi => (rootIdx + semi) % 12)
+      };
+    }
+
+    function formatChordSuffix(type) {
+      switch(type) {
+        case "maj": return "";
+        case "min": return "m";
+        case "dim": return "dim";
+        case "maj7": return "maj7";
+        case "min7": return "m7";
+        case "dom7": return "7";
+        default: return "";
+      }
+    }
+
+    function updateScaleDisplay() {
+      const scaleNotes = getScaleNotes(state.key, state.mode);
+      document.getElementById("scaleNotesDisplay").textContent = scaleNotes.join("  ");
+      
+      let modeItalian = "Maggiore";
+      if (state.mode === "minor") modeItalian = "Minore Naturale";
+      else if (state.mode === "harmonicMinor") modeItalian = "Minore Armonica";
+      else if (state.mode === "dorian") modeItalian = "Modo Dorico";
+      document.getElementById("scaleFormulaBadge").textContent = modeItalian;
+    }
+
+    function populateProgressionsList() {
+      const category = (state.mode === "major") ? "major" : "minor";
+      const list = PROGRESSION_DATABASE[category];
+      const select = document.getElementById("progressionSelect");
+      select.innerHTML = "";
+
+      list.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.name} — [ ${p.numerals.join(" - ")} ]`;
+        if (p.id === state.progressionId) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      // Se l'id non esiste nella lista attiva, seleziona il primo
+      if (!list.some(p => p.id === state.progressionId)) {
+        state.progressionId = list[0].id;
+        select.value = state.progressionId;
+      }
+
+      updateProgressionInfo();
+    }
+
+    function getActiveProgression() {
+      const category = (state.mode === "major") ? "major" : "minor";
+      const list = PROGRESSION_DATABASE[category];
+      return list.find(p => p.id === state.progressionId) || list[0];
+    }
+
+    function updateProgressionInfo() {
+      const prog = getActiveProgression();
+      document.getElementById("progressionDescription").textContent = prog.description;
+      document.getElementById("theoryInsightText").textContent = prog.insight + ` Nella tonalità di ${state.key} ${state.mode === 'major' ? 'Maggiore' : 'Minore'}, questa sequenza sprigiona un forte senso di coerenza e dinamismo.`;
+    }
+
+    function buildCurrentChords() {
+      const prog = getActiveProgression();
+      const chords = [];
+
+      for (let i = 0; i < prog.degrees.length; i++) {
+        const degree = prog.degrees[i];
+        const type = prog.types[i];
+        const chordData = calculateChord(state.key, state.mode, degree, type, 3);
+        chordData.numeral = prog.numerals[i];
+        chordData.bar = i + 1;
+        chords.push(chordData);
+      }
+
+      state.currentChords = chords;
+      renderChordCards();
+    }
+
+    function renderChordCards() {
+      const container = document.getElementById("chordTimelineCards");
+      container.innerHTML = "";
+
+      state.currentChords.forEach((c, idx) => {
+        const card = document.createElement("div");
+        card.id = `chord-card-${idx}`;
+        card.className = "chord-card bg-slate-950/70 border border-slate-700/80 rounded-xl p-3 text-center transition-all duration-300 relative overflow-hidden";
+        
+        card.innerHTML = `
+          <div class="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-0.5">Misura ${c.bar}</div>
+          <div class="text-base font-extrabold text-cyan-300 font-mono tracking-tight">${c.fullName}</div>
+          <div class="text-xs font-semibold text-indigo-400 font-mono mt-0.5">${c.numeral}</div>
+          <div class="text-[10px] font-mono text-slate-400 mt-1 truncate">
+            ${c.pitches.map(p => p.replace(/\d/, '')).join(' · ')}
+          </div>
+          <div class="active-indicator absolute bottom-0 left-0 right-0 h-1 bg-cyan-400 opacity-0 transition-opacity"></div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /* ==========================================================================
+       4. MOTORE ALGORITMICO DI GENERAZIONE MELODICA
+       ========================================================================== */
+    function generateMelody() {
+      const chords = state.currentChords;
+      const scaleNotes = getScaleNotes(state.key, state.mode);
+      const adherence = state.chordAdherence / 100; // 0.40 a 1.00
+      const baseOctave = state.leadOctave;
+
+      // Creazione del pool di altezze note per il range melodico (2 ottave)
+      const pitchPool = [];
+      for (let oct = baseOctave; oct <= baseOctave + 1; oct++) {
+        for (let s = 0; s < scaleNotes.length; s++) {
+          const noteName = scaleNotes[s];
+          pitchPool.push({
+            name: noteName,
+            octave: oct,
+            full: `${noteName}${oct}`,
+            pitchClass: getRootIndex(noteName),
+            scaleDegree: s
+          });
+        }
+      }
+
+      // Risoluzione ritmica: 4 battute = 16 quarti
+      // A seconda della densità ritmica scelta, generiamo pattern di durate
+      const rhythmPatterns = generateRhythmTimeline(state.rhythmDensity, state.phraseForm);
+
+      const generatedEvents = [];
+      let lastPitchIndex = Math.floor(pitchPool.length / 2); // Inizia dal centro
+      let chordToneHits = 0;
+      let totalNotes = 0;
+
+      rhythmPatterns.forEach((eventInfo, index) => {
+        const barIndex = Math.min(Math.floor(eventInfo.timeInBeats / 4), 3);
+        const currentChord = chords[barIndex];
+        const isStrongBeat = (eventInfo.timeInBeats % 2 === 0); // battito 1 o 3
+
+        // Calcolo se puntare a un chord tone o scalar note
+        // Battiti forti aumentano la probabilità di accordo
+        const effectiveAdherence = isStrongBeat ? Math.min(1.0, adherence + 0.15) : adherence;
+        const wantChordTone = Math.random() < effectiveAdherence;
+
+        // Filtra le altezze appropriate
+        let candidates = [];
+        if (wantChordTone) {
+          candidates = pitchPool.map((p, idx) => ({ ...p, poolIdx: idx }))
+            .filter(p => currentChord.pitchClasses.includes(p.pitchClass));
+        }
+
+        if (candidates.length === 0) {
+          candidates = pitchPool.map((p, idx) => ({ ...p, poolIdx: idx }));
+        }
+
+        // Applica profilo/contorno melodico (Contour shaping)
+        const targetContourIndex = calculateContourTarget(
+          state.contour, 
+          eventInfo.timeInBeats / 16, 
+          pitchPool.length
+        );
+
+        // Ordina o pondera i candidati per vicinanza al moto melodico
+        candidates.sort((a, b) => {
+          // Penalizza salti superiori a una sesta (9 semitoni o ~5 scalini nel pool)
+          const distA = Math.abs(a.poolIdx - lastPitchIndex);
+          const distB = Math.abs(b.poolIdx - lastPitchIndex);
+          
+          const contourDistA = Math.abs(a.poolIdx - targetContourIndex);
+          const contourDistB = Math.abs(b.poolIdx - targetContourIndex);
+
+          const scoreA = distA * 1.5 + contourDistA;
+          const scoreB = distB * 1.5 + contourDistB;
+          return scoreA - scoreB;
+        });
+
+        // Selezione con elemento aleatorio ponderato tra i migliori 3 candidati
+        const pickIdx = Math.floor(Math.pow(Math.random(), 1.7) * Math.min(3, candidates.length));
+        const chosen = candidates[pickIdx] || candidates[0];
+
+        // Se abbiamo fatto un salto ampio (> 3 gradi), prepariamo il prossimo per risoluzione opposta
+        lastPitchIndex = chosen.poolIdx;
+
+        // Classificazione del tipo di nota per visualizer & statistiche
+        const isRoot = (chosen.pitchClass === getRootIndex(currentChord.root));
+        const isChordTone = currentChord.pitchClasses.includes(chosen.pitchClass);
+        let noteRole = "passing";
+        if (isRoot) {
+          noteRole = "root";
+          chordToneHits++;
+        } else if (isChordTone) {
+          noteRole = "chordTone";
+          chordToneHits++;
+        }
+
+        totalNotes++;
+
+        // Velocity umana con leggera accentazione sui quarti
+        const humanizeFactor = (state.humanize / 100);
+        let baseVelocity = isStrongBeat ? 0.85 : 0.70;
+        baseVelocity += (Math.random() * 0.2 - 0.1) * humanizeFactor;
+        baseVelocity = Math.max(0.4, Math.min(0.95, baseVelocity));
+
+        generatedEvents.push({
+          note: chosen.full,
+          noteName: chosen.name,
+          octave: chosen.octave,
+          poolIdx: chosen.poolIdx,
+          timeInBeats: eventInfo.timeInBeats,
+          durationInBeats: eventInfo.durationInBeats,
+          velocity: baseVelocity,
+          role: noteRole,
+          bar: barIndex + 1
+        });
+      });
+
+      state.currentMelody = generatedEvents;
+
+      // Aggiorna statistiche
+      const adherencePct = Math.round((chordToneHits / Math.max(1, totalNotes)) * 100);
+      document.getElementById("notesCountDisplay").textContent = totalNotes;
+      document.getElementById("harmonyAdherenceDisplay").textContent = `${adherencePct}% Tonica/Accordo`;
+
+      // Ridisegna il piano roll
+      drawPianoRoll();
+      setupToneParts();
+      triggerToast("Nuova melodia generata!");
+    }
+
+    /* Generazione del profilo melodico desiderato */
+    function calculateContourTarget(contourType, progress0to1, maxPool) {
+      const mid = maxPool / 2;
+      switch (contourType) {
+        case "arch":
+          // Campana che raggiunge il picco a circa il 65% della durata
+          return Math.sin(progress0to1 * Math.PI) * (maxPool - 2);
+        case "wave":
+          // Due onde complete
+          return mid + Math.sin(progress0to1 * Math.PI * 4) * (mid * 0.7);
+        case "ascending":
+          return (progress0to1 * (maxPool - 3)) + 1;
+        case "stepwise":
+        case "leaps":
+        default:
+          return mid;
+      }
+    }
+
+    /* Generatore di griglia ritmica musicale coerente */
+    function generateRhythmTimeline(density, formPattern) {
+      // Forme melodiche: AABA (Battuta 1 e 2 hanno ritmo simile, 3 varia, 4 riprende)
+      const events = [];
+      const barRhythms = [];
+
+      for (let b = 0; b < 4; b++) {
+        let patternToUse;
+        if (formPattern === "AABA") {
+          if (b === 0) patternToUse = pickRhythmCells(density);
+          else if (b === 1) patternToUse = [...barRhythms[0]]; // Ripete ritmo A
+          else if (b === 2) patternToUse = pickRhythmCells("busy"); // Variazione B
+          else patternToUse = [...barRhythms[0]]; // Ritorno A
+        } else if (formPattern === "AABB") {
+          if (b === 0) patternToUse = pickRhythmCells(density);
+          else if (b === 1) patternToUse = [...barRhythms[0]];
+          else if (b === 2) patternToUse = pickRhythmCells(density);
+          else patternToUse = [...barRhythms[2]];
+        } else {
+          patternToUse = pickRhythmCells(density);
+        }
+        barRhythms.push(patternToUse);
+
+        // Converti in battiti assoluti
+        let currentBeatInBar = 0;
+        patternToUse.forEach(dur => {
+          events.push({
+            timeInBeats: (b * 4) + currentBeatInBar,
+            durationInBeats: dur
+          });
+          currentBeatInBar += dur;
+        });
+      }
+
+      return events;
+    }
+
+    function pickRhythmCells(density) {
+      // Ritorna un array di durate che sommano esattamente a 4 quarti (1 battuta)
+      if (density === "sparse") {
+        const templates = [
+          [2, 2],
+          [2, 1, 1],
+          [1, 1, 2],
+          [3, 1],
+          [1.5, 0.5, 2]
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else if (density === "busy") {
+        const templates = [
+          [0.5, 0.5, 0.5, 0.5, 1, 1],
+          [0.75, 0.25, 0.5, 0.5, 1, 1],
+          [0.5, 1, 0.5, 1, 1],
+          [0.5, 0.5, 1, 0.5, 0.5, 1]
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      } else if (density === "arpeggiator") {
+        return [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+      } else {
+        // Balanced
+        const templates = [
+          [1, 1, 1, 1],
+          [1, 0.5, 0.5, 1, 1],
+          [0.5, 0.5, 1, 2],
+          [1.5, 0.5, 1, 1],
+          [1, 1, 0.5, 0.5, 1]
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+      }
+    }
+
+    /* Mutazione note mantenendo il ritmo */
+    function mutateMelodyNotes() {
+      if (state.currentMelody.length === 0) return;
+      const chords = state.currentChords;
+      const scaleNotes = getScaleNotes(state.key, state.mode);
+      const adherence = state.chordAdherence / 100;
+
+      state.currentMelody.forEach(ev => {
+        if (Math.random() < 0.6) {
+          const chord = chords[ev.bar - 1];
+          const wantChord = Math.random() < adherence;
+          let pool = scaleNotes;
+          if (wantChord) {
+            pool = chord.pitches.map(p => p.replace(/\d/, ''));
+          }
+          const newNote = pool[Math.floor(Math.random() * pool.length)];
+          ev.noteName = newNote;
+          ev.note = `${newNote}${ev.octave}`;
+          
+          if (newNote === chord.root) ev.role = "root";
+          else if (chord.pitchClasses.includes(getRootIndex(newNote))) ev.role = "chordTone";
+          else ev.role = "passing";
+        }
+      });
+
+      drawPianoRoll();
+      setupToneParts();
+      triggerToast("Note variate armonicamente!");
+    }
+
+    /* Mutazione ritmo */
+    function mutateRhythmOnly() {
+      generateMelody();
+      triggerToast("Nuova struttura ritmica applicata!");
+    }
+
+    /* ==========================================================================
+       5. RENDERING GRAFICO CANVAS DEL PIANO ROLL
+       ========================================================================== */
+    const canvas = document.getElementById("pianoRollCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      drawPianoRoll();
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    function drawPianoRoll() {
+      const width = canvas.getBoundingClientRect().width;
+      const height = canvas.getBoundingClientRect().height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Sfondo scuro e griglia
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, width, height);
+
+      const totalBeats = 16;
+      const beatWidth = width / totalBeats;
+
+      // Disegno delle aree degli accordi di sfondo (4 battute)
+      const barWidth = width / 4;
+      for (let b = 0; b < 4; b++) {
+        // Colori alternati tenui
+        ctx.fillStyle = (b % 2 === 0) ? "rgba(15, 23, 42, 0.6)" : "rgba(30, 41, 59, 0.4)";
+        ctx.fillRect(b * barWidth, 0, barWidth, height);
+
+        // Linea divisoria battuta spessa
+        ctx.strokeStyle = "rgba(71, 85, 105, 0.5)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(b * barWidth, 0);
+        ctx.lineTo(b * barWidth, height);
+        ctx.stroke();
+
+        // Nome accordo trasparente gigante sullo sfondo
+        if (state.currentChords[b]) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+          ctx.font = "bold 38px 'JetBrains Mono', monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(state.currentChords[b].fullName, (b + 0.5) * barWidth, height / 2 + 12);
+        }
+      }
+
+      // Linee dei quarti e ottavi
+      for (let beat = 0; beat < totalBeats; beat++) {
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.3)";
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(beat * beatWidth, 0);
+        ctx.lineTo(beat * beatWidth, height);
+        ctx.stroke();
+      }
+
+      if (!state.currentMelody || state.currentMelody.length === 0) return;
+
+      // Calcolo altezza Y in base al pitch numerico MIDI
+      // Mappatura dinamica min/max pitch per ottimizzare il viewport
+      const midiPitches = state.currentMelody.map(ev => Tone.Frequency(ev.note).toMidi());
+      const minPitch = Math.min(...midiPitches) - 2;
+      const maxPitch = Math.max(...midiPitches) + 2;
+      const pitchRange = Math.max(12, maxPitch - minPitch);
+      const rowHeight = height / pitchRange;
+
+      // Disegna corsie orizzontali per semitoni
+      for (let p = minPitch; p <= maxPitch; p++) {
+        const y = height - ((p - minPitch + 1) * rowHeight);
+        const pitchClass = p % 12;
+        const isBlackKey = [1, 3, 6, 8, 10].includes(pitchClass);
+
+        ctx.fillStyle = isBlackKey ? "rgba(0, 0, 0, 0.25)" : "rgba(255, 255, 255, 0.015)";
+        ctx.fillRect(0, y, width, rowHeight);
+
+        ctx.strokeStyle = "rgba(51, 65, 85, 0.15)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Disegna note melodiche
+      state.currentMelody.forEach(noteEvent => {
+        const midi = Tone.Frequency(noteEvent.note).toMidi();
+        const x = noteEvent.timeInBeats * beatWidth;
+        const noteW = Math.max(6, (noteEvent.durationInBeats * beatWidth) - 3);
+        const y = height - ((midi - minPitch + 1) * rowHeight) + 2;
+        const noteH = Math.max(10, rowHeight - 4);
+
+        // Gradiente e colore in base al ruolo armonico
+        let grad = ctx.createLinearGradient(x, y, x + noteW, y + noteH);
+        let borderGlow = "rgba(6, 182, 212, 0.8)";
+
+        if (noteEvent.role === "root") {
+          // Tonica: Ciano brillante
+          grad.addColorStop(0, "#22d3ee");
+          grad.addColorStop(1, "#0891b2");
+          borderGlow = "#38bdf8";
+        } else if (noteEvent.role === "chordTone") {
+          // Nota di accordo: Indaco / Blu reale
+          grad.addColorStop(0, "#818cf8");
+          grad.addColorStop(1, "#4f46e5");
+          borderGlow = "#a5b4fc";
+        } else {
+          // Nota di passaggio: Viola sofisticato
+          grad.addColorStop(0, "#c084fc");
+          grad.addColorStop(1, "#9333ea");
+          borderGlow = "#d8b4fe";
+        }
+
+        // Rettangolo arrotondato
+        drawRoundedRect(ctx, x, y, noteW, noteH, 5, grad, borderGlow);
+
+        // Testo della nota all'interno del blocco
+        if (noteW > 18) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 10px 'JetBrains Mono', monospace";
+          ctx.textAlign = "left";
+          ctx.fillText(noteEvent.noteName, x + 5, y + noteH - 4);
+        }
+      });
+    }
+
+    function drawRoundedRect(c, x, y, w, h, r, fill, stroke) {
+      c.save();
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.lineTo(x + w - r, y);
+      c.quadraticCurveTo(x + w, y, x + w, y + r);
+      c.lineTo(x + w, y + h - r);
+      c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      c.lineTo(x + r, y + h);
+      c.quadraticCurveTo(x, y + h, x, y + h - r);
+      c.lineTo(x, y + r);
+      c.quadraticCurveTo(x, y, x + r, y);
+      c.closePath();
+      c.fillStyle = fill;
+      c.shadowColor = stroke;
+      c.shadowBlur = 8;
+      c.fill();
+      c.lineWidth = 1;
+      c.strokeStyle = stroke;
+      c.stroke();
+      c.restore();
+    }
+
+    /* ==========================================================================
+       6. SINTESI AUDIO PROFESSIONALE TONE.JS
+       ========================================================================== */
+    async function initAudioEngine() {
+      if (Tone.context.state !== "running") {
+        await Tone.start();
+        document.getElementById("audioStartPrompt").classList.add("hidden");
+      }
+
+      if (!state.reverb) {
+        // Effetti Master
+        state.reverb = new Tone.Reverb({
+          decay: 3.2,
+          wet: 0.35,
+          preDelay: 0.02
+        }).toDestination();
+        await state.reverb.generate();
+
+        state.delay = new Tone.FeedbackDelay({
+          delayTime: "8n.",
+          feedback: 0.28,
+          wet: 0.22
+        }).connect(state.reverb);
+
+        // Synth per accordi di accompagnamento (Polifonico caldo con chorus)
+        const chordChorus = new Tone.Chorus(2.5, 3.5, 0.4).connect(state.reverb);
+        state.chordSynth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: "fatsawtooth", count: 3, spread: 20 },
+          envelope: { attack: 0.08, decay: 0.8, sustain: 0.7, release: 1.2 },
+          filterEnvelope: { attack: 0.05, decay: 0.5, sustain: 0.5, release: 1.5, baseFrequency: 300, octaves: 2.5 }
+        }).chain(chordChorus, Tone.Destination);
+        state.chordSynth.volume.value = state.chordVolume;
+
+        // Inizializza synth solista per melodia
+        createLeadSynth();
+      }
+    }
+
+    function createLeadSynth() {
+      if (state.leadSynth) {
+        state.leadSynth.dispose();
+      }
+
+      const timbre = state.leadTimbre;
+      let synth;
+
+      switch(timbre) {
+        case "bell":
+          synth = new Tone.FMSynth({
+            harmonicity: 3.01,
+            modulationIndex: 12,
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.005, decay: 1.5, sustain: 0.05, release: 1.2 },
+            modulation: { type: "square" },
+            modulationEnvelope: { attack: 0.002, decay: 0.6, sustain: 0, release: 0.4 }
+          });
+          break;
+
+        case "leadSynth":
+          synth = new Tone.MonoSynth({
+            oscillator: { type: "sawtooth" },
+            filter: { Q: 3.5, type: "lowpass", rolloff: -24 },
+            envelope: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.5 },
+            filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.6, baseFrequency: 800, octaves: 2.8 }
+          });
+          break;
+
+        case "pluck":
+          synth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.002, decay: 0.35, sustain: 0.02, release: 0.4 }
+          });
+          break;
+
+        case "flute":
+          synth = new Tone.MonoSynth({
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.08, decay: 0.2, sustain: 0.8, release: 0.6 },
+            filterEnvelope: { attack: 0.08, decay: 0.3, sustain: 0.7, release: 0.8, baseFrequency: 600, octaves: 1.5 }
+          });
+          break;
+
+        case "electricPiano":
+        default:
+          synth = new Tone.FMSynth({
+            harmonicity: 1.5,
+            modulationIndex: 3.5,
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.01, decay: 0.8, sustain: 0.3, release: 0.8 },
+            modulation: { type: "triangle" },
+            modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 0.5 }
+          });
+          break;
+      }
+
+      synth.chain(state.delay, Tone.Destination);
+      synth.volume.value = state.leadVolume;
+      state.leadSynth = synth;
+    }
+
+    function setupToneParts() {
+      // Disattiva e pulisce eventi precedenti
+      if (state.melodyPart) {
+        state.melodyPart.dispose();
+        state.melodyPart = null;
+      }
+      if (state.chordPart) {
+        state.chordPart.dispose();
+        state.chordPart = null;
+      }
+
+      Tone.Transport.cancel();
+      Tone.Transport.loop = true;
+      Tone.Transport.loopStart = 0;
+      Tone.Transport.loopEnd = "4m"; // 4 misure
+      Tone.Transport.bpm.value = state.bpm;
+
+      // Creazione parte armonica (un accordo per misura di 4/4)
+      const chordEvents = state.currentChords.map((chord, idx) => ({
+        time: `${idx}:0:0`,
+        notes: chord.pitches,
+        duration: "1m",
+        index: idx
+      }));
+
+      state.chordPart = new Tone.Part((time, value) => {
+        if (!state.chordMuted && state.chordSynth) {
+          state.chordSynth.triggerAttackRelease(value.notes, "2n", time, 0.45);
+        }
+        // Evidenziazione visiva della card accordo corrente nel DOM
+        Tone.Draw.schedule(() => {
+          highlightActiveChordCard(value.index);
+        }, time);
+      }, chordEvents).start(0);
+
+      // Creazione parte melodica
+      const melodyEvents = state.currentMelody.map(ev => {
+        const beatInMeasure = ev.timeInBeats % 4;
+        const measure = Math.floor(ev.timeInBeats / 4);
+        // Formatta in battiti Tone (es. "1:2.5")
+        const timeNotation = `${measure}:${beatInMeasure}`;
+        // Durata in sedicesimi
+        const durationNotation = `${ev.durationInBeats * 4} * 16n`;
+        return {
+          time: timeNotation,
+          note: ev.note,
+          duration: durationNotation,
+          velocity: ev.velocity,
+          timeInBeats: ev.timeInBeats
+        };
+      });
+
+      state.melodyPart = new Tone.Part((time, value) => {
+        if (state.leadSynth) {
+          state.leadSynth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+        }
+      }, melodyEvents).start(0);
+
+      // Cursore animato di riproduzione nel Canvas
+      Tone.Transport.scheduleRepeat((time) => {
+        Tone.Draw.schedule(() => {
+          updatePlaybackCursor();
+        }, time);
+      }, "32n");
+    }
+
+    function highlightActiveChordCard(activeIdx) {
+      document.querySelectorAll(".chord-card").forEach((card, idx) => {
+        const indicator = card.querySelector(".active-indicator");
+        if (idx === activeIdx) {
+          card.classList.add("border-cyan-400", "shadow-lg", "shadow-cyan-500/20", "bg-slate-900");
+          card.classList.remove("border-slate-700/80", "bg-slate-950/70");
+          if (indicator) indicator.style.opacity = "1";
+        } else {
+          card.classList.remove("border-cyan-400", "shadow-lg", "shadow-cyan-500/20", "bg-slate-900");
+          card.classList.add("border-slate-700/80", "bg-slate-950/70");
+          if (indicator) indicator.style.opacity = "0";
+        }
+      });
+    }
+
+    function updatePlaybackCursor() {
+      if (!state.isPlaying) return;
+      const progress = Tone.Transport.progress; // 0.0 a 1.0
+      const cursor = document.getElementById("playbackCursor");
+      const canvasRect = canvas.getBoundingClientRect();
+      const posX = progress * canvasRect.width;
+
+      cursor.style.display = "block";
+      cursor.style.left = `${posX}px`;
+
+      // Status text
+      const currentBeat = Math.floor(progress * 16) + 1;
+      const currentBar = Math.floor(progress * 4) + 1;
+      document.getElementById("currentStatusText").textContent = `Riproduzione in corso: Misura ${currentBar} • Quarto ${(currentBeat - 1) % 4 + 1}/4`;
+    }
+
+    async function togglePlay() {
+      await initAudioEngine();
+
+      if (state.isPlaying) {
+        Tone.Transport.pause();
+        state.isPlaying = false;
+        document.getElementById("playIcon").setAttribute("data-lucide", "play");
+        document.getElementById("playText").textContent = "Riproduci";
+        document.getElementById("currentStatusText").textContent = "In pausa";
+      } else {
+        Tone.Transport.start();
+        state.isPlaying = true;
+        document.getElementById("playIcon").setAttribute("data-lucide", "pause");
+        document.getElementById("playText").textContent = "Pausa";
+      }
+      lucide.createIcons();
+    }
+
+    function stopPlayback() {
+      Tone.Transport.stop();
+      state.isPlaying = false;
+      document.getElementById("playIcon").setAttribute("data-lucide", "play");
+      document.getElementById("playText").textContent = "Riproduci";
+      document.getElementById("playbackCursor").style.display = "none";
+      document.getElementById("currentStatusText").textContent = "Ferma al punto iniziale";
+      highlightActiveChordCard(-1);
+      lucide.createIcons();
+    }
+
+    /* ==========================================================================
+       7. ESPORTAZIONE FILE MIDI STANDARD (SMF Formato 0/1)
+       ========================================================================== */
+    function exportToStandardMidi() {
+      if (!state.currentMelody || state.currentMelody.length === 0) {
+        triggerToast("Nessuna melodia generata da esportare!");
+        return;
+      }
+
+      // Costruzione binaria di un file MIDI valido senza librerie esterne
+      const ticksPerQuarter = 480;
+      const bpm = state.bpm;
+      const microsecondsPerQuarter = Math.round(60000000 / bpm);
+
+      // Track 1: Melodia Solista
+      const trackEvents = [];
+
+      // Tempo event
+      trackEvents.push({
+        delta: 0,
+        bytes: [0xFF, 0x51, 0x03, 
+          (microsecondsPerQuarter >> 16) & 0xFF,
+          (microsecondsPerQuarter >> 8) & 0xFF,
+          microsecondsPerQuarter & 0xFF
+        ]
+      });
+
+      // Track Name: Melody
+      const trackName = "MelodyHarmonizer Lead";
+      const nameBytes = Array.from(trackName).map(c => c.charCodeAt(0));
+      trackEvents.push({
+        delta: 0,
+        bytes: [0xFF, 0x03, nameBytes.length, ...nameBytes]
+      });
+
+      // Converti note della melodia in Note On / Note Off ordinati nel tempo
+      const noteActions = [];
+      state.currentMelody.forEach(n => {
+        const midi = Tone.Frequency(n.note).toMidi();
+        const startTick = Math.round(n.timeInBeats * ticksPerQuarter);
+        const durationTicks = Math.round(n.durationInBeats * ticksPerQuarter);
+        const endTick = startTick + Math.max(60, durationTicks - 20); // slight staccato
+        const vel = Math.round(n.velocity * 127);
+
+        noteActions.push({ tick: startTick, type: "on", midi: midi, vel: vel });
+        noteActions.push({ tick: endTick, type: "off", midi: midi, vel: 0 });
+      });
+
+      // Aggiungi accordi di sottofondo su canale 1 (0-indexed)
+      state.currentChords.forEach((c, bIdx) => {
+        const startTick = bIdx * 4 * ticksPerQuarter;
+        const durationTicks = Math.round(3.8 * ticksPerQuarter);
+        const endTick = startTick + durationTicks;
+
+        c.pitches.forEach(p => {
+          const midi = Tone.Frequency(p).toMidi();
+          noteActions.push({ tick: startTick, type: "on", midi: midi, vel: 65, channel: 1 });
+          noteActions.push({ tick: endTick, type: "off", midi: midi, vel: 0, channel: 1 });
+        });
+      });
+
+      // Ordina temporalmente
+      noteActions.sort((a, b) => a.tick - b.tick);
+
+      let lastTick = 0;
+      noteActions.forEach(action => {
+        const delta = action.tick - lastTick;
+        lastTick = action.tick;
+        const channel = action.channel || 0;
+        const status = (action.type === "on" ? 0x90 : 0x80) | channel;
+        trackEvents.push({
+          delta: delta,
+          bytes: [status, action.midi, action.vel]
+        });
+      });
+
+      // End of Track
+      trackEvents.push({
+        delta: ticksPerQuarter,
+        bytes: [0xFF, 0x2F, 0x00]
+      });
+
+      // Serializza Track Chunks
+      const trackBytes = [];
+      trackEvents.forEach(ev => {
+        // Scrive delta-time come variabile length quantity
+        writeVarLength(trackBytes, ev.delta);
+        ev.bytes.forEach(b => trackBytes.push(b));
+      });
+
+      // Header Chunk: MThd, length 6, format 0 (single multitrack), 1 track, ticksPerQuarter
+      const headerBytes = [
+        0x4D, 0x54, 0x68, 0x64, // "MThd"
+        0x00, 0x00, 0x00, 0x06, // length 6
+        0x00, 0x00,             // format 0
+        0x00, 0x01,             // 1 track
+        (ticksPerQuarter >> 8) & 0xFF, ticksPerQuarter & 0xFF
+      ];
+
+      // Track Chunk: MTrk
+      const trackLen = trackBytes.length;
+      const trackHeader = [
+        0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+        (trackLen >> 24) & 0xFF,
+        (trackLen >> 16) & 0xFF,
+        (trackLen >> 8) & 0xFF,
+        trackLen & 0xFF
+      ];
+
+      const fullFileBytes = new Uint8Array([...headerBytes, ...trackHeader, ...trackBytes]);
+      const blob = new Blob([fullFileBytes], { type: "audio/midi" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `melodia_${state.key}_${state.mode}_${state.progressionId}.mid`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      triggerToast("File MIDI (.mid) scaricato con successo!");
+    }
+
+    function writeVarLength(arr, value) {
+      let buffer = value & 0x7F;
+      while ((value >>= 7)) {
+        buffer <<= 8;
+        buffer |= ((value & 0x7F) | 0x80);
+      }
+      while (true) {
+        arr.push(buffer & 0xFF);
+        if (buffer & 0x80) buffer >>= 8;
+        else break;
+      }
+    }
+
+    function triggerToast(message) {
+      const toast = document.getElementById("toast");
+      document.getElementById("toastMsg").textContent = message;
+      toast.classList.remove("opacity-0", "translate-y-2");
+      toast.classList.add("opacity-100", "translate-y-0");
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-2");
+        toast.classList.remove("opacity-100", "translate-y-0");
+      }, 3000);
+    }
+
+    /* ==========================================================================
+       8. EVENT LISTENERS & BINDING UI
+       ========================================================================== */
+    document.addEventListener("DOMContentLoaded", () => {
+      resizeCanvas();
+      updateScaleDisplay();
+      populateProgressionsList();
+      buildCurrentChords();
+      generateMelody();
+
+      // Audio init button on dialog
+      document.getElementById("btnInitAudio").addEventListener("click", () => {
+        initAudioEngine();
+      });
+
+      // Transport Buttons
+      document.getElementById("btnPlay").addEventListener("click", togglePlay);
+      document.getElementById("btnStop").addEventListener("click", stopPlayback);
+
+      // Tasto barra spaziatrice per Play / Pausa rapido
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && e.target.tagName !== "SELECT" && e.target.tagName !== "INPUT") {
+          e.preventDefault();
+          togglePlay();
+        }
+      });
+
+      // Tonalità e Modo
+      document.getElementById("keySelect").addEventListener("change", (e) => {
+        state.key = e.target.value;
+        updateScaleDisplay();
+        buildCurrentChords();
+        generateMelody();
+      });
+
+      document.getElementById("modeSelect").addEventListener("change", (e) => {
+        state.mode = e.target.value;
+        updateScaleDisplay();
+        populateProgressionsList();
+        buildCurrentChords();
+        generateMelody();
+      });
+
+      document.getElementById("progressionSelect").addEventListener("change", (e) => {
+        state.progressionId = e.target.value;
+        updateProgressionInfo();
+        buildCurrentChords();
+        generateMelody();
+      });
+
+      // Pulsante Genera Melodia
+      document.getElementById("btnGenerate").addEventListener("click", () => {
+        generateMelody();
+      });
+
+      // Variazioni veloci
+      document.getElementById("btnMutateMelody").addEventListener("click", mutateMelodyNotes);
+      document.getElementById("btnMutateRhythm").addEventListener("click", mutateRhythmOnly);
+      document.getElementById("btnExportMIDI").addEventListener("click", exportToStandardMidi);
+
+      // BPM
+      const bpmSlider = document.getElementById("bpmSlider");
+      bpmSlider.addEventListener("input", (e) => {
+        state.bpm = parseInt(e.target.value);
+        document.getElementById("bpmDisplay").textContent = state.bpm;
+        if (Tone.Transport) {
+          Tone.Transport.bpm.value = state.bpm;
+        }
+      });
+
+      // Parametri algoritmici
+      const adherenceSlider = document.getElementById("chordAdherenceSlider");
+      adherenceSlider.addEventListener("input", (e) => {
+        state.chordAdherence = parseInt(e.target.value);
+        document.getElementById("chordAdherenceValue").textContent = `${state.chordAdherence}%`;
+      });
+      adherenceSlider.addEventListener("change", () => generateMelody());
+
+      document.getElementById("rhythmDensitySelect").addEventListener("change", (e) => {
+        state.rhythmDensity = e.target.value;
+        const labels = { sparse: "Spaziosa", balanced: "Media", busy: "Fitta", arpeggiator: "Arpeggio" };
+        document.getElementById("rhythmDensityValue").textContent = labels[state.rhythmDensity] || "Media";
+        generateMelody();
+      });
+
+      document.getElementById("contourSelect").addEventListener("change", (e) => {
+        state.contour = e.target.value;
+        generateMelody();
+      });
+
+      document.getElementById("phraseFormSelect").addEventListener("change", (e) => {
+        state.phraseForm = e.target.value;
+        generateMelody();
+      });
+
+      // Ottava lead
+      document.querySelectorAll(".octave-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          document.querySelectorAll(".octave-btn").forEach(b => {
+            b.classList.remove("border-cyan-500/50", "bg-cyan-500/20", "text-cyan-300");
+            b.classList.add("border-slate-700/60", "bg-slate-800", "text-slate-300");
+          });
+          btn.classList.add("border-cyan-500/50", "bg-cyan-500/20", "text-cyan-300");
+          btn.classList.remove("border-slate-700/60", "bg-slate-800", "text-slate-300");
+          state.leadOctave = parseInt(btn.dataset.octave);
+          generateMelody();
+        });
+      });
+
+      // Umanizzazione
+      document.getElementById("humanizeSlider").addEventListener("input", (e) => {
+        state.humanize = parseInt(e.target.value);
+        let txt = "Bassa";
+        if (state.humanize > 40) txt = "Alta / Live";
+        else if (state.humanize > 15) txt = "Moderata";
+        document.getElementById("humanizeValue").textContent = txt;
+      });
+
+      // Sintetizzatore & Mix
+      document.getElementById("leadTimbreSelect").addEventListener("change", (e) => {
+        state.leadTimbre = e.target.value;
+        createLeadSynth();
+      });
+
+      document.getElementById("leadVolSlider").addEventListener("input", (e) => {
+        state.leadVolume = parseFloat(e.target.value);
+        document.getElementById("leadVolumeText").textContent = `${state.leadVolume} dB`;
+        if (state.leadSynth) state.leadSynth.volume.value = state.leadVolume;
+      });
+
+      document.getElementById("chordVolSlider").addEventListener("input", (e) => {
+        state.chordVolume = parseFloat(e.target.value);
+        document.getElementById("chordVolumeText").textContent = `${state.chordVolume} dB`;
+        if (state.chordSynth) state.chordSynth.volume.value = state.chordVolume;
+      });
+
+      document.getElementById("chordMuteToggle").addEventListener("change", (e) => {
+        state.chordMuted = !e.target.checked;
+      });
+      // Inizializza checkbox sincronizzata
+      document.getElementById("chordMuteToggle").checked = true;
+
+      // Click sul piano roll per suonare e ascoltare la nota
+      canvas.addEventListener("click", async (e) => {
+        await initAudioEngine();
+        const rect = canvas.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const midiPitches = state.currentMelody.map(ev => Tone.Frequency(ev.note).toMidi());
+        const minPitch = Math.min(...midiPitches) - 2;
+        const maxPitch = Math.max(...midiPitches) + 2;
+        const pitchRange = Math.max(12, maxPitch - minPitch);
+        const rowHeight = rect.height / pitchRange;
+        const clickedMidi = Math.round(maxPitch - (y / rowHeight));
+
+        if (state.leadSynth && clickedMidi > 20 && clickedMidi < 110) {
+          state.leadSynth.triggerAttackRelease(Tone.Frequency(clickedMidi, "midi").toNote(), "8n");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
